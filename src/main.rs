@@ -2,10 +2,10 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use std::fs;
 use std::io::{self, Write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use blockvault::vault::{
-    inspect_block, lock_folder, smart_resolve_path, unlock_block, LockResult,
+    get_user_home, inspect_block, lock_folder, smart_resolve_path, unlock_block, LockResult,
 };
 
 #[derive(Parser)]
@@ -110,8 +110,7 @@ fn main() -> Result<()> {
                     .unwrap_or_default()
                     .to_string_lossy()
                     .to_lowercase();
-                let home = std::env::var("HOME").unwrap_or_else(|_| "/home/leodarshan".to_string());
-                let home_path = Path::new(&home);
+                let home_path = get_user_home();
                 let doc_path = home_path.join("Documents");
 
                 if folder.contains("Downloads/documents") && doc_path.is_dir() {
@@ -182,8 +181,8 @@ fn main() -> Result<()> {
                         }
                     }
                 }
-                let home = std::env::var("HOME").unwrap_or_else(|_| "/home/leodarshan".to_string());
-                let dl = Path::new(&home).join("Downloads");
+                let home_path = get_user_home();
+                let dl = home_path.join("Downloads");
                 if let Ok(entries) = fs::read_dir(&dl) {
                     for e in entries.flatten() {
                         if e.path().extension().and_then(|x| x.to_str()) == Some("block") {

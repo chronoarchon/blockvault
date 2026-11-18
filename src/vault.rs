@@ -53,6 +53,17 @@ pub struct UnlockResult {
     pub file_count: usize,
 }
 
+/// Returns the current user's home directory across Linux, macOS ($HOME) and Windows ($USERPROFILE).
+pub fn get_user_home() -> PathBuf {
+    if let Ok(h) = std::env::var("HOME") {
+        PathBuf::from(h)
+    } else if let Ok(h) = std::env::var("USERPROFILE") {
+        PathBuf::from(h)
+    } else {
+        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+    }
+}
+
 /// Smart path resolver that handles missing leading slashes, '~' expansion, root-typo redirects (/Downloads -> ~/Downloads),
 /// automatic extension appending, and smart search in ~/Downloads and ~/Documents.
 pub fn smart_resolve_path(input: &str, default_ext: &str) -> Option<PathBuf> {
@@ -61,8 +72,8 @@ pub fn smart_resolve_path(input: &str, default_ext: &str) -> Option<PathBuf> {
         return None;
     }
 
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/leodarshan".to_string());
-    let home_path = Path::new(&home);
+    let home_path = get_user_home();
+    let home = home_path.to_string_lossy().to_string();
 
     // 1. Handle common typo: "/Downloads/..." or "/Documents/..." when user accidentally used root "/" instead of "~/"
     let adjusted = if trimmed.starts_with("/Downloads")

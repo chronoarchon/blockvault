@@ -47,7 +47,10 @@ pub fn compute_merkle_tree(folder_path: &Path) -> Result<MerkleTreeResult> {
     let mut file_entries = Vec::with_capacity(full_files.len());
 
     for f in &full_files {
-        let rel_path = f.strip_prefix(folder_path)?.to_string_lossy().to_string();
+        let rel_path = f
+            .strip_prefix(folder_path)?
+            .to_string_lossy()
+            .replace('\\', "/");
         let content = fs::read(f)?;
         let hash = format!("{:x}", Sha256::digest(&content));
         file_entries.push(MerkleFileEntry {
