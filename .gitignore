@@ -1,0 +1,4 @@
+target/
+*.block
+*.log
+.DS_Store

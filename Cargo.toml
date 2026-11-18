@@ -1,0 +1,31 @@
+[package]
+name = "blockvault"
+version = "2.1.0"
+edition = "2021"
+authors = ["chronoarchon <chronoarchon@users.noreply.github.com>"]
+description = "Sovereign, cryptocurrency-grade folder encryption CLI using BIP-39 mnemonic seeds, Scrypt KDF, AES-256-GCM, and Merkle trees."
+license = "MIT"
+repository = "https://github.com/chronoarchon/blockvault"
+keywords = ["cryptocurrency", "blockchain", "bip39", "aes-256-gcm", "merkle-tree"]
+
+[dependencies]
+aes-gcm = "0.10"
+scrypt = "0.11"
+bip39 = "2.2"
+sha2 = "0.10"
+zeroize = { version = "1.9", features = ["derive"] }
+tar = "0.4"
+flate2 = "1.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+clap = { version = "4.6", features = ["derive"] }
+anyhow = "1.0"
+rand_core = { version = "0.6", features = ["getrandom"] }
+getrandom = "0.2"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
