@@ -14,7 +14,7 @@ use blockvault::vault::{
 #[command(
     name = "blockvault",
     author = "chronoarchon <chronoarchon@users.noreply.github.com>",
-    version = "2.1.0",
+    version = "2.1.2",
     about = "Sovereign, cryptocurrency-grade folder encryption CLI using BIP-39 mnemonic seeds, Scrypt KDF, AES-256-GCM, and Merkle trees.",
     after_help = "EXAMPLES:
   $ blockvault lock ~/Downloads/lynterminal
@@ -56,6 +56,7 @@ enum Commands {
     },
 
     /// Decrypt and restore a block vault, mathematically verifying the Merkle root
+    #[command(alias = "unblock", alias = "restore", alias = "decrypt")]
     Unlock {
         /// Encrypted .block file to unlock (filename or path)
         block: String,
@@ -370,5 +371,19 @@ fn print_lock_success(res: &LockResult, word_count: usize, has_passphrase: bool)
     println!("\x1b[38;5;240m║\x1b[0m \x1b[31m\x1b[1m⚠️  CRITICAL RECOVERY WARNING:\x1b[0m");
     println!("\x1b[38;5;240m║\x1b[0m   Write down these {} words on paper or save them in a password manager.", word_count);
     println!("\x1b[38;5;240m║\x1b[0m   Without these words, \x1b[1mNO ONE ON EARTH\x1b[0m can decrypt this block.");
+    println!("\x1b[38;5;240m╠════════════════════════════════════════════════════════════════════════╣\x1b[0m");
+    println!("\x1b[38;5;240m║\x1b[0m \x1b[38;5;45m\x1b[1m🔓 HOW TO UNLOCK / RESTORE THIS BLOCK:\x1b[0m");
+    let block_disp = res.block_path.display().to_string();
+    let quoted_block = if block_disp.contains(' ') {
+        format!("\"{}\"", block_disp)
+    } else {
+        block_disp
+    };
+    if has_passphrase {
+        println!("\x1b[38;5;240m║\x1b[0m   \x1b[1m\x1b[32m$ blockvault unlock {} -p \"<passphrase>\"\x1b[0m", quoted_block);
+    } else {
+        println!("\x1b[38;5;240m║\x1b[0m   \x1b[1m\x1b[32m$ blockvault unlock {}\x1b[0m", quoted_block);
+    }
+    println!("\x1b[38;5;240m║\x1b[0m   \x1b[2m(To extract to a custom folder: blockvault unlock {} <destination>)\x1b[0m", quoted_block);
     println!("\x1b[38;5;240m╚════════════════════════════════════════════════════════════════════════╝\x1b[0m\n");
 }

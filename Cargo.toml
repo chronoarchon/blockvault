@@ -1,6 +1,6 @@
 [package]
 name = "blockvault"
-version = "2.1.0"
+version = "2.1.2"
 edition = "2021"
 authors = ["chronoarchon <chronoarchon@users.noreply.github.com>"]
 description = "Sovereign, cryptocurrency-grade folder encryption CLI using BIP-39 mnemonic seeds, Scrypt KDF, AES-256-GCM, and Merkle trees."

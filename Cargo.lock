@@ -148,7 +148,7 @@ dependencies = [
 
 [[package]]
 name = "blockvault"
-version = "2.1.0"
+version = "2.1.2"
 dependencies = [
  "aes-gcm",
  "anyhow",
