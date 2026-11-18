@@ -84,7 +84,7 @@ pub fn compute_merkle_tree(folder_path: &Path) -> Result<MerkleTreeResult> {
 
     let mut depth = 1;
     while current_layer.len() > 1 {
-        let mut next_layer = Vec::with_capacity((current_layer.len() + 1) / 2);
+        let mut next_layer = Vec::with_capacity(current_layer.len().div_ceil(2));
         for i in (0..current_layer.len()).step_by(2) {
             let left = current_layer[i];
             let right = if i + 1 < current_layer.len() {

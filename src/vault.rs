@@ -142,7 +142,13 @@ pub fn smart_resolve_path(input: &str, default_ext: &str) -> Option<PathBuf> {
     }
 
     // Return the expanded path (for destination/output paths that might not exist yet)
-    Some(p)
+    if !default_ext.is_empty() && !p.to_string_lossy().ends_with(default_ext) {
+        let mut with_ext = p;
+        with_ext.set_extension(default_ext.trim_start_matches('.'));
+        Some(with_ext)
+    } else {
+        Some(p)
+    }
 }
 
 /// Tar-gzips a directory into a memory buffer.
@@ -372,7 +378,7 @@ fn hex_encode(data: &[u8]) -> String {
 }
 
 fn hex_decode(s: &str) -> Result<Vec<u8>> {
-    if s.len() % 2 != 0 {
+    if !s.len().is_multiple_of(2) {
         bail!("Odd length hex string");
     }
     (0..s.len())
