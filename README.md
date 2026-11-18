@@ -1,5 +1,11 @@
 # BlockVault
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![Language: Rust](https://img.shields.io/badge/Language-Rust-orange.svg?style=flat-square&logo=rust)](https://www.rust-lang.org)
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-blue.svg?style=flat-square)](https://github.com/chronoarchon/blockvault)
+[![QA](https://img.shields.io/badge/QA_Suite-10%2F10_Passed-brightgreen.svg?style=flat-square)](https://github.com/chronoarchon/blockvault)
+[![Release](https://img.shields.io/badge/Release-v2.1.0-blueviolet.svg?style=flat-square)](https://github.com/chronoarchon/blockvault/releases)
+
 A sovereign, cryptocurrency-grade folder encryption engine and CLI written in Rust.
 
 BlockVault secures local directories using the same cryptographic primitives that protect decentralized blockchain networks: BIP-39 mnemonic seeds, Scrypt key derivation, AES-256-GCM authenticated encryption, and domain-separated Merkle trees.
