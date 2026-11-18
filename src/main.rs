@@ -17,8 +17,8 @@ use blockvault::vault::{
     after_help = "EXAMPLES:
   $ blockvault lock ~/Downloads/lynterminal
   $ blockvault lock ./my-folder --words 24 --passphrase \"secret#2026\" --replace
-  $ blockvault unblock luffy.block
-  $ blockvault unblock luffy.block ~/Downloads/restored
+  $ blockvault unlock luffy.block
+  $ blockvault unlock luffy.block ~/Downloads/restored
   $ blockvault inspect luffy.block"
 )]
 struct Cli {
@@ -29,7 +29,6 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Encrypt a folder into an immutable, authenticated blockchain vault
-    #[command(alias = "block", alias = "encrypt")]
     Lock {
         /// Target folder to encrypt
         folder: String,
@@ -55,7 +54,6 @@ enum Commands {
     },
 
     /// Decrypt and restore a block vault, mathematically verifying the Merkle root
-    #[command(alias = "unblock", alias = "restore", alias = "decrypt", alias = "open")]
     Unlock {
         /// Encrypted .block file to unlock (filename or path)
         block: String,
@@ -199,7 +197,7 @@ fn main() -> Result<()> {
                     for b in found_blocks {
                         eprintln!("   📦 {}", b.display());
                     }
-                    eprintln!("\n   Example: \x1b[36mblockvault unblock {}\x1b[0m", block);
+                    eprintln!("\n   Example: \x1b[36mblockvault unlock {}\x1b[0m", block);
                 }
                 std::process::exit(1);
             }
