@@ -4,8 +4,10 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
 
+use blockvault::progress::{ProgressBar, StepIndicator};
 use blockvault::vault::{
-    get_user_home, inspect_block, lock_folder, smart_resolve_path, unlock_block, LockResult,
+    get_user_home, inspect_block, lock_folder_with_progress, smart_resolve_path,
+    unlock_block_with_progress, LockProgress, LockResult, UnlockProgress,
 };
 
 #[derive(Parser)]
@@ -145,15 +147,52 @@ fn main() -> Result<()> {
 
             println!("\n\x1b[36m📦 Initializing BlockVault Genesis Block...\x1b[0m");
             println!("\x1b[2m   Target: {}\x1b[0m", target_path.display());
-            println!("\x1b[2m   Security: {}-word BIP-39 + Scrypt (N=16384) + AES-256-GCM\x1b[0m", words);
+            println!("\x1b[2m   Security: {}-word BIP-39 + Scrypt (N=16384) + AES-256-GCM\x1b[0m\n", words);
 
-            let res: LockResult = lock_folder(
+            let mut pb = ProgressBar::new(0, "[1/4] 🌲 Hashing Merkle Ledger");
+            let mut init_bar = false;
+            let mut s2: Option<StepIndicator> = None;
+            let mut s3: Option<StepIndicator> = None;
+            let mut s4: Option<StepIndicator> = None;
+
+            let res: LockResult = lock_folder_with_progress(
                 &target_path,
                 out_p.as_deref(),
                 words,
                 &passphrase,
                 replace,
+                |event| match event {
+                    LockProgress::HashingFile { current, total, bytes, .. } => {
+                        if !init_bar {
+                            pb = ProgressBar::new(total as u64, "[1/4] 🌲 Hashing Merkle Ledger");
+                            init_bar = true;
+                        }
+                        pb.update(current as u64, bytes);
+                        if current == total {
+                            pb.finish("[1/4] 🌲 Merkle Ledger Hashed");
+                        }
+                    }
+                    LockProgress::DerivingKeys => {
+                        s2 = Some(StepIndicator::start("[2/4] ⚙️  Deriving Master Key (Scrypt N=16384)..."));
+                    }
+                    LockProgress::CompressingPayload => {
+                        if let Some(ref s) = s2 {
+                            s.done("[2/4] ⚙️  Master Key & BIP-39 Seed Derived");
+                        }
+                        s3 = Some(StepIndicator::start("[3/4] 📦 Compressing Folder Payload..."));
+                    }
+                    LockProgress::EncryptingContainer => {
+                        if let Some(ref s) = s3 {
+                            s.done("[3/4] 📦 Folder Compressed & Packed");
+                        }
+                        s4 = Some(StepIndicator::start("[4/4] 🔒 Encrypting Container (AES-256-GCM + AAD)..."));
+                    }
+                },
             )?;
+
+            if let Some(ref s) = s4 {
+                s.done("[4/4] 🔒 Container Sealed & Authenticated");
+            }
 
             print_lock_success(&res, words, !passphrase.is_empty());
         }
@@ -219,16 +258,46 @@ fn main() -> Result<()> {
                 }
             };
 
-            println!("\n\x1b[36m⚙️  Deriving keys via Scrypt (Ethereum Keystore Standard)...\x1b[0m");
-            println!("\x1b[36m🔓 Decrypting & Authenticating with AES-256-GCM...\x1b[0m");
+            let mut s1: Option<StepIndicator> = None;
+            let mut s2: Option<StepIndicator> = None;
+            let mut s3: Option<StepIndicator> = None;
+            let mut s4: Option<StepIndicator> = None;
 
-            let res = unlock_block(
+            println!();
+            let res = unlock_block_with_progress(
                 &block_p,
                 dest_p.as_deref(),
                 &user_phrase,
                 &passphrase,
                 replace,
+                |event| match event {
+                    UnlockProgress::InspectingHeader => {
+                        s1 = Some(StepIndicator::start("[1/4] 🔎 Reading Block Header & Magic Bytes..."));
+                    }
+                    UnlockProgress::DerivingKeys => {
+                        if let Some(ref s) = s1 {
+                            s.done("[1/4] 🔎 Header Authenticated & Validated");
+                        }
+                        s2 = Some(StepIndicator::start("[2/4] ⚙️  Deriving Master Key via Scrypt (N=16384)..."));
+                    }
+                    UnlockProgress::DecryptingAndUnpacking => {
+                        if let Some(ref s) = s2 {
+                            s.done("[2/4] ⚙️  Key Verified & Derived");
+                        }
+                        s3 = Some(StepIndicator::start("[3/4] 🔓 Decrypting Payload (AES-256-GCM) & Unpacking..."));
+                    }
+                    UnlockProgress::VerifyingMerkleRoot => {
+                        if let Some(ref s) = s3 {
+                            s.done("[3/4] 🔓 Decrypted & Unpacked");
+                        }
+                        s4 = Some(StepIndicator::start("[4/4] 🌲 Verifying Merkle Tree Ledger..."));
+                    }
+                },
             )?;
+
+            if let Some(ref s) = s4 {
+                s.done("[4/4] 🌲 Merkle Root Verified (100% Match)");
+            }
 
             println!("\n\x1b[32m\x1b[1m✅ DECRYPTION SUCCESSFUL!\x1b[0m");
             println!("   \x1b[1mRestored Folder:\x1b[0m  {}", res.extracted_folder.display());

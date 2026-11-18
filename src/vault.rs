@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use crate::bip39_wallet::{generate_mnemonic, mnemonic_to_keys};
 use crate::crypto::{decrypt_aes_gcm, derive_key, encrypt_aes_gcm, generate_iv, generate_salt};
-use crate::merkle::{compute_merkle_tree, MerkleFileEntry};
+use crate::merkle::{compute_merkle_tree, compute_merkle_tree_with_progress, MerkleFileEntry};
 
 pub const MAGIC: &[u8; 8] = b"BLKVAULT";
 pub const VERSION: u16 = 2;
@@ -178,6 +178,22 @@ fn extract_archive(tar_gz: &[u8], dest_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+#[derive(Debug, Clone)]
+pub enum LockProgress<'a> {
+    HashingFile { current: usize, total: usize, path: &'a str, bytes: u64 },
+    DerivingKeys,
+    CompressingPayload,
+    EncryptingContainer,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum UnlockProgress {
+    InspectingHeader,
+    DerivingKeys,
+    DecryptingAndUnpacking,
+    VerifyingMerkleRoot,
+}
+
 pub fn lock_folder(
     folder_path: &Path,
     output_path: Option<&Path>,
@@ -185,6 +201,27 @@ pub fn lock_folder(
     passphrase: &str,
     replace: bool,
 ) -> Result<LockResult> {
+    lock_folder_with_progress(
+        folder_path,
+        output_path,
+        word_count,
+        passphrase,
+        replace,
+        |_| {},
+    )
+}
+
+pub fn lock_folder_with_progress<F>(
+    folder_path: &Path,
+    output_path: Option<&Path>,
+    word_count: usize,
+    passphrase: &str,
+    replace: bool,
+    mut progress_cb: F,
+) -> Result<LockResult>
+where
+    F: FnMut(LockProgress),
+{
     if !folder_path.is_dir() {
         bail!("Path '{}' is not a valid directory.", folder_path.display());
     }
@@ -204,21 +241,25 @@ pub fn lock_folder(
     };
 
     // 1. Compute Merkle Tree
-    let merkle = compute_merkle_tree(folder_path)?;
+    let merkle = compute_merkle_tree_with_progress(folder_path, |current, total, path, bytes| {
+        progress_cb(LockProgress::HashingFile { current, total, path, bytes });
+    })?;
 
-    // 2. BIP-39 Mnemonic & Seed
+    // 2. BIP-39 Mnemonic & Seed + 3. Derive Key via Scrypt
+    progress_cb(LockProgress::DerivingKeys);
     let mnemonic = generate_mnemonic(word_count)?;
     let derived = mnemonic_to_keys(&mnemonic, passphrase)?;
 
-    // 3. Derive Key via Scrypt
     let salt = generate_salt()?;
     let aes_key = derive_key(&derived.seed, &salt)?;
     let iv = generate_iv()?;
 
     // 4. Archive payload
+    progress_cb(LockProgress::CompressingPayload);
     let tar_gz = archive_directory(folder_path)?;
 
     // 5. Header Pre-Authentication
+    progress_cb(LockProgress::EncryptingContainer);
     let now = chrono_timestamp();
     let mut header = BlockHeader {
         block_version: VERSION,
@@ -279,6 +320,28 @@ pub fn unlock_block(
     passphrase: &str,
     replace: bool,
 ) -> Result<UnlockResult> {
+    unlock_block_with_progress(
+        block_path,
+        dest_dir,
+        phrase,
+        passphrase,
+        replace,
+        |_| {},
+    )
+}
+
+pub fn unlock_block_with_progress<F>(
+    block_path: &Path,
+    dest_dir: Option<&Path>,
+    phrase: &str,
+    passphrase: &str,
+    replace: bool,
+    mut progress_cb: F,
+) -> Result<UnlockResult>
+where
+    F: FnMut(UnlockProgress),
+{
+    progress_cb(UnlockProgress::InspectingHeader);
     let data = fs::read(block_path)
         .context(format!("Failed to read block file '{}'", block_path.display()))?;
 
@@ -299,6 +362,7 @@ pub fn unlock_block(
     let ciphertext = &data[14 + header_len..];
 
     // Derive Keys from Mnemonic
+    progress_cb(UnlockProgress::DerivingKeys);
     let derived = mnemonic_to_keys(phrase, passphrase)?;
 
     let salt = hex_decode(&header.salt_hex)?;
@@ -323,6 +387,7 @@ pub fn unlock_block(
         Vec::new()
     };
 
+    progress_cb(UnlockProgress::DecryptingAndUnpacking);
     let tar_gz = decrypt_aes_gcm(&aes_key, &iv, ciphertext, &tag, &aad)?;
 
     let target = match dest_dir {
@@ -336,6 +401,7 @@ pub fn unlock_block(
     fs::create_dir_all(&target)?;
     extract_archive(&tar_gz, &target)?;
 
+    progress_cb(UnlockProgress::VerifyingMerkleRoot);
     let extracted_folder = target.join(&header.folder_name);
     let verify_merkle = compute_merkle_tree(&extracted_folder)?;
     let merkle_verified = verify_merkle.root == header.merkle_root;

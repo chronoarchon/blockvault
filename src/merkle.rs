@@ -43,19 +43,30 @@ pub fn scan_folder_files(base_dir: &Path) -> Result<Vec<PathBuf>> {
 
 /// Computes a domain-separated binary Merkle Tree (RFC 6962 compliant).
 pub fn compute_merkle_tree(folder_path: &Path) -> Result<MerkleTreeResult> {
-    let full_files = scan_folder_files(folder_path)?;
-    let mut file_entries = Vec::with_capacity(full_files.len());
+    compute_merkle_tree_with_progress(folder_path, |_, _, _, _| {})
+}
 
-    for f in &full_files {
+/// Computes a domain-separated binary Merkle Tree with per-file progress updates.
+pub fn compute_merkle_tree_with_progress<F>(folder_path: &Path, mut on_progress: F) -> Result<MerkleTreeResult>
+where
+    F: FnMut(usize, usize, &str, u64),
+{
+    let full_files = scan_folder_files(folder_path)?;
+    let total = full_files.len();
+    let mut file_entries = Vec::with_capacity(total);
+
+    for (idx, f) in full_files.iter().enumerate() {
         let rel_path = f
             .strip_prefix(folder_path)?
             .to_string_lossy()
             .replace('\\', "/");
         let content = fs::read(f)?;
+        let size = content.len() as u64;
         let hash = format!("{:x}", Sha256::digest(&content));
+        on_progress(idx + 1, total, &rel_path, size);
         file_entries.push(MerkleFileEntry {
             path: rel_path,
-            size: content.len() as u64,
+            size,
             hash,
         });
     }
