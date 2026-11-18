@@ -15,10 +15,11 @@ use blockvault::vault::{
     version = "2.1.0",
     about = "Sovereign, cryptocurrency-grade folder encryption CLI using BIP-39 mnemonic seeds, Scrypt KDF, AES-256-GCM, and Merkle trees.",
     after_help = "EXAMPLES:
-  $ blockvault lock ./my-folder
-  $ blockvault lock ~/Documents/projects --words 24 --passphrase \"secret#2026\" --replace
-  $ blockvault unlock ~/Documents/projects.block ~/Restored
-  $ blockvault inspect ~/Documents/projects.block"
+  $ blockvault lock ~/Downloads/lynterminal
+  $ blockvault lock ./my-folder --words 24 --passphrase \"secret#2026\" --replace
+  $ blockvault unblock luffy.block
+  $ blockvault unblock luffy.block ~/Downloads/restored
+  $ blockvault inspect luffy.block"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -28,13 +29,17 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Encrypt a folder into an immutable, authenticated blockchain vault
+    #[command(alias = "block", alias = "encrypt")]
     Lock {
         /// Target folder to encrypt
         folder: String,
 
-        /// Custom output file path (.block)
-        #[arg(short, long)]
+        /// Optional custom output file path (.block)
         output: Option<String>,
+
+        /// Optional output file flag (--output <path>)
+        #[arg(short = 'o', long = "output")]
+        output_flag: Option<String>,
 
         /// BIP-39 mnemonic word count (12 or 24)
         #[arg(short, long, default_value_t = 12)]
@@ -50,13 +55,17 @@ enum Commands {
     },
 
     /// Decrypt and restore a block vault, mathematically verifying the Merkle root
+    #[command(alias = "unblock", alias = "restore", alias = "decrypt", alias = "open")]
     Unlock {
-        /// Encrypted .block file to unlock
+        /// Encrypted .block file to unlock (filename or path)
         block: String,
 
-        /// Destination directory for restored files (defaults to current directory)
-        #[arg(short, long)]
+        /// Optional destination directory for restored files (defaults to current directory or origin)
         dest: Option<String>,
+
+        /// Optional destination directory flag (--dest <path>)
+        #[arg(short = 'd', long = "dest")]
+        dest_flag: Option<String>,
 
         /// 12 or 24-word BIP-39 recovery seed phrase
         #[arg(long)]
@@ -72,6 +81,7 @@ enum Commands {
     },
 
     /// Inspect public block header, creator wallet, and Merkle file ledger without keys
+    #[command(alias = "info", alias = "view", alias = "check")]
     Inspect {
         /// Encrypted .block file to inspect
         block: String,
@@ -85,6 +95,7 @@ fn main() -> Result<()> {
         Commands::Lock {
             folder,
             output,
+            output_flag,
             words,
             passphrase,
             replace,
@@ -132,7 +143,8 @@ fn main() -> Result<()> {
                 std::process::exit(1);
             }
 
-            let out_p = output.as_deref().and_then(|o| smart_resolve_path(o, ".block"));
+            let final_output = output.or(output_flag);
+            let out_p = final_output.as_deref().and_then(|o| smart_resolve_path(o, ".block"));
 
             println!("\n\x1b[36m📦 Initializing BlockVault Genesis Block...\x1b[0m");
             println!("\x1b[2m   Target: {}\x1b[0m", target_path.display());
@@ -152,6 +164,7 @@ fn main() -> Result<()> {
         Commands::Unlock {
             block,
             dest,
+            dest_flag,
             phrase,
             passphrase,
             replace,
@@ -160,22 +173,54 @@ fn main() -> Result<()> {
                 .unwrap_or_else(|| PathBuf::from(&block));
 
             if !block_p.is_file() {
-                eprintln!("\n\x1b[31m\x1b[1m❌ ERROR:\x1b[0m Block file \"{}\" not found.", block_p.display());
+                eprintln!("\n\x1b[31m\x1b[1m❌ ERROR:\x1b[0m Block file \"{}\" not found.", block);
+
+                // Check for available .block files to guide user
+                let mut found_blocks = Vec::new();
+                if let Ok(entries) = fs::read_dir(".") {
+                    for e in entries.flatten() {
+                        if e.path().extension().and_then(|x| x.to_str()) == Some("block") {
+                            found_blocks.push(e.path());
+                        }
+                    }
+                }
+                let home = std::env::var("HOME").unwrap_or_else(|_| "/home/leodarshan".to_string());
+                let dl = Path::new(&home).join("Downloads");
+                if let Ok(entries) = fs::read_dir(&dl) {
+                    for e in entries.flatten() {
+                        if e.path().extension().and_then(|x| x.to_str()) == Some("block") {
+                            found_blocks.push(e.path());
+                        }
+                    }
+                }
+
+                if !found_blocks.is_empty() {
+                    eprintln!("\n\x1b[33m💡 Available .block vaults found on your system:\x1b[0m");
+                    for b in found_blocks {
+                        eprintln!("   📦 {}", b.display());
+                    }
+                    eprintln!("\n   Example: \x1b[36mblockvault unblock {}\x1b[0m", block);
+                }
                 std::process::exit(1);
             }
+
+            let final_dest = dest.or(dest_flag);
+            let dest_p = final_dest.as_deref().and_then(|d| smart_resolve_path(d, ""));
 
             let user_phrase = match phrase {
                 Some(p) => p,
                 None => {
-                    print!("\n\x1b[33m🔑 Enter BIP-39 Recovery Seed Phrase (12 or 24 words):\x1b[0m\n> ");
+                    println!("\n\x1b[36m📦 Selected Block: {}\x1b[0m", block_p.display());
+                    if let Some(ref d) = dest_p {
+                        println!("\x1b[2m   Restore Destination: {}\x1b[0m", d.display());
+                    }
+                    print!("\x1b[33m🔑 Enter BIP-39 Recovery Seed Phrase (12 or 24 words):\x1b[0m\n> ");
                     io::stdout().flush()?;
                     let mut input = String::new();
                     io::stdin().read_line(&mut input)?;
                     input.trim().to_string()
                 }
             };
-
-            let dest_p = dest.as_deref().and_then(|d| smart_resolve_path(d, ""));
 
             println!("\n\x1b[36m⚙️  Deriving keys via Scrypt (Ethereum Keystore Standard)...\x1b[0m");
             println!("\x1b[36m🔓 Decrypting & Authenticating with AES-256-GCM...\x1b[0m");

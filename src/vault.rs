@@ -53,11 +53,32 @@ pub struct UnlockResult {
     pub file_count: usize,
 }
 
-/// Smart path resolver that handles missing leading slashes, '~' expansion, and .block extension.
+/// Smart path resolver that handles missing leading slashes, '~' expansion, root-typo redirects (/Downloads -> ~/Downloads),
+/// automatic extension appending, and smart search in ~/Downloads and ~/Documents.
 pub fn smart_resolve_path(input: &str, default_ext: &str) -> Option<PathBuf> {
     let trimmed = input.trim();
-    let expanded = if trimmed.starts_with('~') {
-        let home = std::env::var("HOME").unwrap_or_else(|_| "/home/leodarshan".to_string());
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/leodarshan".to_string());
+    let home_path = Path::new(&home);
+
+    // 1. Handle common typo: "/Downloads/..." or "/Documents/..." when user accidentally used root "/" instead of "~/"
+    let adjusted = if trimmed.starts_with("/Downloads")
+        || trimmed.starts_with("/Documents")
+        || trimmed.starts_with("/Desktop")
+        || trimmed.starts_with("/Music")
+        || trimmed.starts_with("/Videos")
+        || trimmed.starts_with("/Pictures")
+    {
+        let p_root = Path::new(trimmed);
+        if !p_root.exists() {
+            home_path.join(trimmed.trim_start_matches('/')).to_string_lossy().to_string()
+        } else {
+            trimmed.to_string()
+        }
+    } else if trimmed.starts_with('~') {
         trimmed.replacen('~', &home, 1)
     } else if trimmed.starts_with("home/") {
         format!("/{}", trimmed)
@@ -65,15 +86,51 @@ pub fn smart_resolve_path(input: &str, default_ext: &str) -> Option<PathBuf> {
         trimmed.to_string()
     };
 
-    let p = PathBuf::from(expanded);
+    let p = PathBuf::from(&adjusted);
+
+    // If looking for a specific extension (e.g. .block), check with extension first
     if !default_ext.is_empty() && !p.to_string_lossy().ends_with(default_ext) {
         let mut with_ext = p.clone();
-        with_ext.set_extension(default_ext.trim_start_matches('.'));
+        let ext = default_ext.trim_start_matches('.');
+        with_ext.set_extension(ext);
         if with_ext.is_file() {
             return Some(with_ext);
         }
     }
 
+    // If path exists as-is, return it
+    if p.exists() {
+        return Some(p);
+    }
+
+    // If relative path and not found in current directory, check in ~/Downloads/ and ~/Documents/
+    if !p.is_absolute() {
+        if !default_ext.is_empty() {
+            let mut dl_ext = home_path.join("Downloads").join(&p);
+            dl_ext.set_extension(default_ext.trim_start_matches('.'));
+            if dl_ext.is_file() {
+                return Some(dl_ext);
+            }
+        }
+        let in_downloads = home_path.join("Downloads").join(&p);
+        if in_downloads.exists() {
+            return Some(in_downloads);
+        }
+
+        if !default_ext.is_empty() {
+            let mut doc_ext = home_path.join("Documents").join(&p);
+            doc_ext.set_extension(default_ext.trim_start_matches('.'));
+            if doc_ext.is_file() {
+                return Some(doc_ext);
+            }
+        }
+        let in_documents = home_path.join("Documents").join(&p);
+        if in_documents.exists() {
+            return Some(in_documents);
+        }
+    }
+
+    // Return the expanded path (for destination/output paths that might not exist yet)
     Some(p)
 }
 
