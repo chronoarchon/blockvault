@@ -62,7 +62,7 @@ cp target/release/blockvault ~/.local/bin/
 ### 1. Locking a Folder or File
 
 <p align="center">
-  <img src="assets/demo-lock.png" alt="Locking a folder with BlockVault" width="850">
+  <img src="assets/screenshot-01-lock-edited.png" alt="Locking a folder with BlockVault" width="850">
 </p>
 
 #### Example A: Standard 12-Word Lock
@@ -98,7 +98,7 @@ blockvault lock ~/Downloads/data /backup/archives/data-2026.block
 ### 2. Unlocking a Block Container
 
 <p align="center">
-  <img src="assets/demo-unlock.png" alt="Unlocking a container with BlockVault" width="850">
+  <img src="assets/screenshot-03-unlock-edited.png" alt="Unlocking a container with BlockVault" width="850">
 </p>
 
 #### Example A: Interactive Unlock (Recommended)
@@ -141,7 +141,7 @@ blockvault unlock ~/Downloads/documents.block --replace
 ### 3. Inspecting a Block Ledger (Public Header)
 
 <p align="center">
-  <img src="assets/demo-inspect.png" alt="Inspecting BlockVault Ledger" width="850">
+  <img src="assets/screenshot-02-inspect-edited.png" alt="Inspecting BlockVault Ledger" width="850">
 </p>
 
 BlockVault stores an unencrypted public manifest header containing the creator wallet, Merkle root, file inventory, and cryptographic parameters. Anyone can audit file integrity without knowing the encryption key:
