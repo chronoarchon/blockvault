@@ -3,12 +3,16 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Language: Rust](https://img.shields.io/badge/Language-Rust-orange.svg?style=flat-square&logo=rust)](https://www.rust-lang.org)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-blue.svg?style=flat-square)](https://github.com/chronoarchon/blockvault)
-[![QA](https://img.shields.io/badge/QA_Suite-10%2F10_Passed-brightgreen.svg?style=flat-square)](https://github.com/chronoarchon/blockvault)
-[![Release](https://img.shields.io/badge/Release-v2.1.0-blueviolet.svg?style=flat-square)](https://github.com/chronoarchon/blockvault/releases)
+[![QA](https://img.shields.io/badge/QA_Suite-11%2F11_Passed-brightgreen.svg?style=flat-square)](https://github.com/chronoarchon/blockvault)
+[![Release](https://img.shields.io/badge/Release-v2.2.0-blueviolet.svg?style=flat-square)](https://github.com/chronoarchon/blockvault/releases)
 
-A sovereign, cryptocurrency-grade folder encryption engine and CLI written in Rust.
+A sovereign, cryptocurrency-grade folder and file encryption engine and CLI written in Rust.
 
-BlockVault secures local directories using the same cryptographic primitives that protect decentralized blockchain networks: BIP-39 mnemonic seeds, Scrypt key derivation, AES-256-GCM authenticated encryption, and domain-separated Merkle trees.
+BlockVault secures local directories and individual files using the same cryptographic primitives that protect decentralized blockchain networks: BIP-39 mnemonic seeds, Scrypt key derivation, AES-256-GCM authenticated encryption, and domain-separated Merkle trees.
+
+<p align="center">
+  <img src="assets/demo-workflow.png" alt="BlockVault Sovereign CLI Workflow" width="900">
+</p>
 
 ---
 
@@ -55,7 +59,11 @@ cp target/release/blockvault ~/.local/bin/
 
 ## Instructions & Usage Examples
 
-### 1. Locking a Folder
+### 1. Locking a Folder or File
+
+<p align="center">
+  <img src="assets/demo-lock.png" alt="Locking a folder with BlockVault" width="850">
+</p>
 
 #### Example A: Standard 12-Word Lock
 Encrypts `~/Downloads/documents` into `~/Downloads/documents.block` and outputs your 12-word recovery seed phrase:
@@ -88,6 +96,10 @@ blockvault lock ~/Downloads/data /backup/archives/data-2026.block
 ---
 
 ### 2. Unlocking a Block Container
+
+<p align="center">
+  <img src="assets/demo-unlock.png" alt="Unlocking a container with BlockVault" width="850">
+</p>
 
 #### Example A: Interactive Unlock (Recommended)
 Prompts securely in your terminal for your 12 or 24-word seed phrase:
@@ -127,6 +139,10 @@ blockvault unlock ~/Downloads/documents.block --replace
 ---
 
 ### 3. Inspecting a Block Ledger (Public Header)
+
+<p align="center">
+  <img src="assets/demo-inspect.png" alt="Inspecting BlockVault Ledger" width="850">
+</p>
 
 BlockVault stores an unencrypted public manifest header containing the creator wallet, Merkle root, file inventory, and cryptographic parameters. Anyone can audit file integrity without knowing the encryption key:
 
