@@ -34,6 +34,7 @@ pub struct BlockHeader {
     pub files: Vec<MerkleFileEntry>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LockResult {
     pub block_path: PathBuf,
     pub mnemonic: String,
@@ -45,6 +46,7 @@ pub struct LockResult {
     pub replaced: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UnlockResult {
     pub extracted_folder: PathBuf,
     pub creator_wallet: String,

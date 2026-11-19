@@ -21,13 +21,25 @@ if ! command -v cargo >/dev/null 2>&1; then
     source "${HOME}/.cargo/env"
 fi
 
-# Clone or update repository
-if [ -d "${INSTALL_DIR}" ]; then
+# Clone or update repository safely (handling divergent or corrupted history)
+if [ -d "${INSTALL_DIR}/.git" ]; then
     echo "Updating existing installation in ${INSTALL_DIR}..."
     cd "${INSTALL_DIR}"
-    git pull --quiet origin main || true
+    if ! (git fetch --depth 1 origin main 2>/dev/null && git reset --hard origin/main 2>/dev/null); then
+        echo "Repository history changed or diverged. Performing clean setup..."
+        cd "${HOME}"
+        rm -rf "${INSTALL_DIR}"
+        git clone --depth 1 --quiet "${REPO_URL}" "${INSTALL_DIR}"
+    fi
 else
+    rm -rf "${INSTALL_DIR}"
     echo "Downloading BlockVault to ${INSTALL_DIR}..."
+    git clone --depth 1 --quiet "${REPO_URL}" "${INSTALL_DIR}"
+fi
+
+if [ ! -f "${INSTALL_DIR}/Cargo.toml" ]; then
+    echo "Refreshing repository workspace..."
+    rm -rf "${INSTALL_DIR}"
     git clone --depth 1 --quiet "${REPO_URL}" "${INSTALL_DIR}"
 fi
 
