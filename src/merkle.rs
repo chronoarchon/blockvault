@@ -19,8 +19,11 @@ pub struct MerkleTreeResult {
     pub files: Vec<MerkleFileEntry>,
 }
 
-/// Recursively scans a directory and collects relative file entries.
+/// Recursively scans a directory (or single file) and collects file entries.
 pub fn scan_folder_files(base_dir: &Path) -> Result<Vec<PathBuf>> {
+    if base_dir.is_file() {
+        return Ok(vec![base_dir.to_path_buf()]);
+    }
     let mut files = Vec::new();
     let mut dirs = vec![base_dir.to_path_buf()];
 
@@ -54,12 +57,20 @@ where
     let full_files = scan_folder_files(folder_path)?;
     let total = full_files.len();
     let mut file_entries = Vec::with_capacity(total);
+    let is_single_file = folder_path.is_file();
 
     for (idx, f) in full_files.iter().enumerate() {
-        let rel_path = f
-            .strip_prefix(folder_path)?
-            .to_string_lossy()
-            .replace('\\', "/");
+        let rel_path = if is_single_file {
+            folder_path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string()
+        } else {
+            f.strip_prefix(folder_path)?
+                .to_string_lossy()
+                .replace('\\', "/")
+        };
         let content = fs::read(f)?;
         let size = content.len() as u64;
         let hash = format!("{:x}", Sha256::digest(&content));

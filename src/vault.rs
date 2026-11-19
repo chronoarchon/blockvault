@@ -67,7 +67,11 @@ pub fn get_user_home() -> PathBuf {
 /// Smart path resolver that handles missing leading slashes, '~' expansion, root-typo redirects (/Downloads -> ~/Downloads),
 /// automatic extension appending, and smart search in ~/Downloads and ~/Documents.
 pub fn smart_resolve_path(input: &str, default_ext: &str) -> Option<PathBuf> {
-    let trimmed = input.trim();
+    let trimmed = input
+        .trim()
+        .trim_matches('\'')
+        .trim_matches('"')
+        .trim();
     if trimmed.is_empty() {
         return None;
     }
@@ -151,17 +155,22 @@ pub fn smart_resolve_path(input: &str, default_ext: &str) -> Option<PathBuf> {
     }
 }
 
-/// Tar-gzips a directory into a memory buffer.
-fn archive_directory(dir_path: &Path) -> Result<Vec<u8>> {
-    let folder_name = dir_path
+/// Tar-gzips a directory or a single file into a memory buffer.
+fn archive_payload(target_path: &Path) -> Result<Vec<u8>> {
+    let name = target_path
         .file_name()
-        .ok_or_else(|| anyhow::anyhow!("Directory has no name"))?;
+        .ok_or_else(|| anyhow::anyhow!("Target path has no name"))?;
 
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
     {
         let mut tar = tar::Builder::new(&mut encoder);
-        tar.append_dir_all(folder_name, dir_path)
-            .context("Failed to build tar archive of directory")?;
+        if target_path.is_file() {
+            tar.append_path_with_name(target_path, name)
+                .context("Failed to build tar archive of file")?;
+        } else {
+            tar.append_dir_all(name, target_path)
+                .context("Failed to build tar archive of directory")?;
+        }
         tar.finish()?;
     }
     encoder.finish().context("Failed to gzip compress payload")
@@ -222,8 +231,8 @@ pub fn lock_folder_with_progress<F>(
 where
     F: FnMut(LockProgress),
 {
-    if !folder_path.is_dir() {
-        bail!("Path '{}' is not a valid directory.", folder_path.display());
+    if !folder_path.exists() {
+        bail!("Path '{}' does not exist.", folder_path.display());
     }
 
     let folder_name = folder_path
@@ -256,7 +265,7 @@ where
 
     // 4. Archive payload
     progress_cb(LockProgress::CompressingPayload);
-    let tar_gz = archive_directory(folder_path)?;
+    let tar_gz = archive_payload(folder_path)?;
 
     // 5. Header Pre-Authentication
     progress_cb(LockProgress::EncryptingContainer);
@@ -298,7 +307,11 @@ where
 
     let total_size = container.len();
     if replace {
-        fs::remove_dir_all(folder_path)?;
+        if folder_path.is_file() {
+            fs::remove_file(folder_path)?;
+        } else {
+            fs::remove_dir_all(folder_path)?;
+        }
     }
 
     Ok(LockResult {

@@ -14,7 +14,7 @@ use blockvault::vault::{
 #[command(
     name = "blockvault",
     author = "chronoarchon <chronoarchon@users.noreply.github.com>",
-    version = "2.1.2",
+    version = "2.2.0",
     about = "Sovereign, cryptocurrency-grade folder encryption CLI using BIP-39 mnemonic seeds, Scrypt KDF, AES-256-GCM, and Merkle trees.",
     after_help = "EXAMPLES:
   $ blockvault lock ~/Downloads/lynterminal
@@ -30,10 +30,10 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Encrypt a folder into an immutable, authenticated blockchain vault
+    /// Encrypt a folder or file into an immutable, authenticated blockchain vault
     Lock {
-        /// Target folder to encrypt
-        folder: String,
+        /// Target folder or file to encrypt (prompted if omitted)
+        folder: Option<String>,
 
         /// Optional custom output file path (.block)
         output: Option<String>,
@@ -50,7 +50,7 @@ enum Commands {
         #[arg(short, long, default_value = "")]
         passphrase: String,
 
-        /// Delete unencrypted source folder after locking (in-place locker mode)
+        /// Delete unencrypted source folder or file after locking (in-place locker mode)
         #[arg(short, long)]
         replace: bool,
     },
@@ -58,8 +58,8 @@ enum Commands {
     /// Decrypt and restore a block vault, mathematically verifying the Merkle root
     #[command(alias = "unblock", alias = "restore", alias = "decrypt")]
     Unlock {
-        /// Encrypted .block file to unlock (filename or path)
-        block: String,
+        /// Encrypted .block file to unlock (filename or path; prompted if omitted)
+        block: Option<String>,
 
         /// Optional destination directory for restored files (defaults to current directory or origin)
         dest: Option<String>,
@@ -84,8 +84,8 @@ enum Commands {
     /// Inspect public block header, creator wallet, and Merkle file ledger without keys
     #[command(alias = "info", alias = "view", alias = "check")]
     Inspect {
-        /// Encrypted .block file to inspect
-        block: String,
+        /// Encrypted .block file to inspect (prompted if omitted)
+        block: Option<String>,
     },
 }
 
@@ -101,14 +101,27 @@ fn main() -> Result<()> {
             passphrase,
             replace,
         } => {
-            let target_path = smart_resolve_path(&folder, "")
-                .unwrap_or_else(|| PathBuf::from(&folder));
+            let folder_input = match folder {
+                Some(f) if !f.trim().is_empty() => f,
+                _ => {
+                    print!("\x1b[36m\x1b[1m📂 Enter path to folder or file to lock:\x1b[0m ");
+                    io::stdout().flush()?;
+                    let mut input = String::new();
+                    io::stdin().read_line(&mut input)?;
+                    input.trim().to_string()
+                }
+            };
 
-            if !target_path.is_dir() {
-                eprintln!("\n\x1b[31m\x1b[1m❌ ERROR:\x1b[0m Target path \"{}\" is not a valid directory.", target_path.display());
+            let target_path = smart_resolve_path(&folder_input, "")
+                .unwrap_or_else(|| PathBuf::from(&folder_input));
 
-                // Smart folder suggestion
-                let folder_name = target_path
+            if !target_path.exists() {
+                eprintln!("\n\x1b[31m\x1b[1m❌ ERROR:\x1b[0m Target path \"{}\" does not exist.", target_path.display());
+                eprintln!("   \x1b[33m💡 Tip: When paths contain spaces, parentheses '()', or '$' symbols, wrap them in quotes:\x1b[0m");
+                eprintln!("      \x1b[32mblockvault lock \"/path/to/my file (1).mp3\"\x1b[0m");
+
+                // Smart suggestion
+                let item_name = target_path
                     .file_name()
                     .unwrap_or_default()
                     .to_string_lossy()
@@ -116,25 +129,23 @@ fn main() -> Result<()> {
                 let home_path = get_user_home();
                 let doc_path = home_path.join("Documents");
 
-                if folder.contains("Downloads/documents") && doc_path.is_dir() {
+                if folder_input.contains("Downloads/documents") && doc_path.is_dir() {
                     eprintln!("   \x1b[33m💡 Tip: \"~/Downloads/documents\" is an example placeholder. Did you mean \"~/Documents\"?\x1b[0m");
                 }
 
                 // Check parent directory
                 if let Some(parent) = target_path.parent() {
                     if parent.is_dir() {
-                        eprintln!("\n\x1b[36mExisting directories inside \"{}\":\x1b[0m", parent.display());
+                        eprintln!("\n\x1b[36mExisting items inside \"{}\":\x1b[0m", parent.display());
                         if let Ok(entries) = fs::read_dir(parent) {
                             for e in entries.flatten() {
-                                if let Ok(ft) = e.file_type() {
-                                    if ft.is_dir() {
-                                        let name = e.file_name().to_string_lossy().to_string();
-                                        if name.to_lowercase() == folder_name {
-                                            eprintln!("  📁 {} \x1b[33m(case mismatch!)\x1b[0m", name);
-                                        } else {
-                                            eprintln!("  📁 {}", name);
-                                        }
-                                    }
+                                let name = e.file_name().to_string_lossy().to_string();
+                                let is_d = e.file_type().map(|ft| ft.is_dir()).unwrap_or(false);
+                                let icon = if is_d { "📁" } else { "📄" };
+                                if name.to_lowercase() == item_name {
+                                    eprintln!("  {} {} \x1b[33m(case mismatch!)\x1b[0m", icon, name);
+                                } else {
+                                    eprintln!("  {} {}", icon, name);
                                 }
                             }
                         }
@@ -206,11 +217,22 @@ fn main() -> Result<()> {
             passphrase,
             replace,
         } => {
-            let block_p = smart_resolve_path(&block, ".block")
-                .unwrap_or_else(|| PathBuf::from(&block));
+            let block_input = match block {
+                Some(b) if !b.trim().is_empty() => b,
+                _ => {
+                    print!("\x1b[36m\x1b[1m🔓 Enter path to .block file to unlock:\x1b[0m ");
+                    io::stdout().flush()?;
+                    let mut input = String::new();
+                    io::stdin().read_line(&mut input)?;
+                    input.trim().to_string()
+                }
+            };
+
+            let block_p = smart_resolve_path(&block_input, ".block")
+                .unwrap_or_else(|| PathBuf::from(&block_input));
 
             if !block_p.is_file() {
-                eprintln!("\n\x1b[31m\x1b[1m❌ ERROR:\x1b[0m Block file \"{}\" not found.", block);
+                eprintln!("\n\x1b[31m\x1b[1m❌ ERROR:\x1b[0m Block file \"{}\" not found.", block_input);
 
                 // Check for available .block files to guide user
                 let mut found_blocks = Vec::new();
@@ -236,7 +258,7 @@ fn main() -> Result<()> {
                     for b in found_blocks {
                         eprintln!("   📦 {}", b.display());
                     }
-                    eprintln!("\n   Example: \x1b[36mblockvault unlock {}\x1b[0m", block);
+                    eprintln!("\n   Example: \x1b[36mblockvault unlock {}\x1b[0m", block_input);
                 }
                 std::process::exit(1);
             }
@@ -313,8 +335,19 @@ fn main() -> Result<()> {
         }
 
         Commands::Inspect { block } => {
-            let block_p = smart_resolve_path(&block, ".block")
-                .unwrap_or_else(|| PathBuf::from(&block));
+            let block_input = match block {
+                Some(b) if !b.trim().is_empty() => b,
+                _ => {
+                    print!("\x1b[36m\x1b[1m🔎 Enter path to .block file to inspect:\x1b[0m ");
+                    io::stdout().flush()?;
+                    let mut input = String::new();
+                    io::stdin().read_line(&mut input)?;
+                    input.trim().to_string()
+                }
+            };
+
+            let block_p = smart_resolve_path(&block_input, ".block")
+                .unwrap_or_else(|| PathBuf::from(&block_input));
 
             if !block_p.is_file() {
                 eprintln!("\n\x1b[31m\x1b[1m❌ ERROR:\x1b[0m Block file \"{}\" not found.", block_p.display());

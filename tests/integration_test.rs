@@ -328,3 +328,46 @@ fn stage_10_cross_platform_path_resolver() {
     let typo_resolved = smart_resolve_path("/Downloads/my-vault", "").unwrap();
     assert_eq!(typo_resolved, home.join("Downloads/my-vault"));
 }
+
+// =========================================================================
+// STAGE 11: Single File Locking & Special Characters / Parentheses Support
+// =========================================================================
+#[test]
+fn stage_11_single_file_with_special_characters_and_parentheses() {
+    let temp_dir = std::env::temp_dir().join("bv_qa_stage11_file");
+    let _ = fs::remove_dir_all(&temp_dir);
+    fs::create_dir_all(&temp_dir).unwrap();
+
+    let complex_filename = "NALonely Lies, GOLDKID$ - Interlinked (Ultra Slowed Audio) [_CtaTTDaDeY].mp3";
+    let test_file_path = temp_dir.join(complex_filename);
+    let sample_bytes = b"ID3\x03\x00\x00\x00\x00\x00#AUDIO_SAMPLE_DATA_ENCRYPTED_BY_BLOCKVAULT#";
+    fs::write(&test_file_path, sample_bytes).unwrap();
+
+    // Lock single file with complex characters
+    let lock_res = lock_folder(&test_file_path, None, 12, "", false).unwrap();
+    assert!(lock_res.block_path.exists(), "Block file must be generated for single file");
+    assert_eq!(lock_res.file_count, 1, "File count must be 1");
+
+    // Inspect container header
+    let (header, _) = inspect_block(&lock_res.block_path).unwrap();
+    assert_eq!(header.folder_name, complex_filename);
+    assert_eq!(header.files.len(), 1);
+    assert_eq!(header.files[0].path, complex_filename);
+
+    // Unlock into restored folder
+    let restore_dir = std::env::temp_dir().join("bv_qa_stage11_restored");
+    let _ = fs::remove_dir_all(&restore_dir);
+    fs::create_dir_all(&restore_dir).unwrap();
+
+    let unlock_res = unlock_block(&lock_res.block_path, Some(&restore_dir), &lock_res.mnemonic, "", false).unwrap();
+    assert!(unlock_res.merkle_verified, "Merkle tree must verify 100% for single file");
+
+    let restored_file = restore_dir.join(complex_filename);
+    assert!(restored_file.exists(), "Restored file must exist at destination");
+    let restored_content = fs::read(&restored_file).unwrap();
+    assert_eq!(restored_content, sample_bytes, "Restored content must match byte-for-byte");
+
+    // Cleanup
+    let _ = fs::remove_dir_all(&temp_dir);
+    let _ = fs::remove_dir_all(&restore_dir);
+}
