@@ -107,6 +107,21 @@ pub fn smart_resolve_path(input: &str, default_ext: &str) -> Option<PathBuf> {
 
     // If looking for a specific extension (e.g. .block), check with extension first
     if !default_ext.is_empty() && !p.to_string_lossy().ends_with(default_ext) {
+        let ext_dot = if default_ext.starts_with('.') {
+            default_ext.to_string()
+        } else {
+            format!(".{}", default_ext)
+        };
+
+        // 1. Try direct append (e.g. "song.mp3" -> "song.mp3.block")
+        let mut direct_app = p.as_os_str().to_os_string();
+        direct_app.push(&ext_dot);
+        let direct_p = PathBuf::from(direct_app);
+        if direct_p.is_file() {
+            return Some(direct_p);
+        }
+
+        // 2. Try set_extension (e.g. "folder" -> "folder.block")
         let mut with_ext = p.clone();
         let ext = default_ext.trim_start_matches('.');
         with_ext.set_extension(ext);
@@ -123,6 +138,21 @@ pub fn smart_resolve_path(input: &str, default_ext: &str) -> Option<PathBuf> {
     // If relative path and not found in current directory, check in ~/Downloads/ and ~/Documents/
     if !p.is_absolute() {
         if !default_ext.is_empty() {
+            let ext_dot = if default_ext.starts_with('.') {
+                default_ext.to_string()
+            } else {
+                format!(".{}", default_ext)
+            };
+
+            // 1. Direct append in ~/Downloads
+            let mut dl_app = home_path.join("Downloads").join(&p).into_os_string();
+            dl_app.push(&ext_dot);
+            let dl_app_p = PathBuf::from(dl_app);
+            if dl_app_p.is_file() {
+                return Some(dl_app_p);
+            }
+
+            // 2. Set extension in ~/Downloads
             let mut dl_ext = home_path.join("Downloads").join(&p);
             dl_ext.set_extension(default_ext.trim_start_matches('.'));
             if dl_ext.is_file() {
@@ -135,6 +165,21 @@ pub fn smart_resolve_path(input: &str, default_ext: &str) -> Option<PathBuf> {
         }
 
         if !default_ext.is_empty() {
+            let ext_dot = if default_ext.starts_with('.') {
+                default_ext.to_string()
+            } else {
+                format!(".{}", default_ext)
+            };
+
+            // 1. Direct append in ~/Documents
+            let mut doc_app = home_path.join("Documents").join(&p).into_os_string();
+            doc_app.push(&ext_dot);
+            let doc_app_p = PathBuf::from(doc_app);
+            if doc_app_p.is_file() {
+                return Some(doc_app_p);
+            }
+
+            // 2. Set extension in ~/Documents
             let mut doc_ext = home_path.join("Documents").join(&p);
             doc_ext.set_extension(default_ext.trim_start_matches('.'));
             if doc_ext.is_file() {

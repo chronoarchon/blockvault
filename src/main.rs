@@ -112,6 +112,12 @@ fn main() -> Result<()> {
                 }
             };
 
+            if folder_input.is_empty() {
+                eprintln!("\n\x1b[31m\x1b[1m❌ ERROR:\x1b[0m No path provided. Please specify a folder or file to lock.");
+                eprintln!("   \x1b[33mExample:\x1b[0m blockvault lock ~/Downloads/my-folder");
+                std::process::exit(1);
+            }
+
             let target_path = smart_resolve_path(&folder_input, "")
                 .unwrap_or_else(|| PathBuf::from(&folder_input));
 
@@ -227,6 +233,12 @@ fn main() -> Result<()> {
                     input.trim().to_string()
                 }
             };
+
+            if block_input.is_empty() {
+                eprintln!("\n\x1b[31m\x1b[1m❌ ERROR:\x1b[0m No .block file provided. Please specify a container to unlock.");
+                eprintln!("   \x1b[33mExample:\x1b[0m blockvault unlock ~/Downloads/my-vault.block");
+                std::process::exit(1);
+            }
 
             let block_p = smart_resolve_path(&block_input, ".block")
                 .unwrap_or_else(|| PathBuf::from(&block_input));
@@ -345,6 +357,12 @@ fn main() -> Result<()> {
                     input.trim().to_string()
                 }
             };
+
+            if block_input.is_empty() {
+                eprintln!("\n\x1b[31m\x1b[1m❌ ERROR:\x1b[0m No .block file provided. Please specify a container to inspect.");
+                eprintln!("   \x1b[33mExample:\x1b[0m blockvault inspect ~/Downloads/my-vault.block");
+                std::process::exit(1);
+            }
 
             let block_p = smart_resolve_path(&block_input, ".block")
                 .unwrap_or_else(|| PathBuf::from(&block_input));

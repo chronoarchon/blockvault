@@ -371,3 +371,27 @@ fn stage_11_single_file_with_special_characters_and_parentheses() {
     let _ = fs::remove_dir_all(&temp_dir);
     let _ = fs::remove_dir_all(&restore_dir);
 }
+
+// =========================================================================
+// STAGE 12: Smart Extension & Preserved File Extension Resolution
+// =========================================================================
+#[test]
+fn stage_12_smart_extension_and_preserved_extension_resolution() {
+    let temp_dir = std::env::temp_dir().join("bv_qa_stage12");
+    let _ = fs::remove_dir_all(&temp_dir);
+    fs::create_dir_all(&temp_dir).unwrap();
+
+    let sample_file = temp_dir.join("photo.jpg");
+    fs::write(&sample_file, b"JPEG_DATA_SIMULATION").unwrap();
+
+    let lock_res = lock_folder(&sample_file, None, 12, "", false).unwrap();
+    // lock_res.block_path is "photo.jpg.block"
+    assert!(lock_res.block_path.exists());
+
+    // Test resolving "photo.jpg" with default_ext ".block"
+    let resolved = smart_resolve_path(&sample_file.to_string_lossy(), ".block");
+    assert_eq!(resolved, Some(lock_res.block_path.clone()), "Must smartly resolve photo.jpg to photo.jpg.block");
+
+    // Cleanup
+    let _ = fs::remove_dir_all(&temp_dir);
+}

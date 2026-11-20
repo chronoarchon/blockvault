@@ -63,18 +63,24 @@
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: 0.75rem;
-      padding: 1rem 1.5rem;
+      padding: 1.2rem 1.5rem;
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      max-width: 680px;
+      flex-direction: column;
+      gap: 0.25rem;
+      max-width: 720px;
       margin: 0 auto 2.5rem;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 0.95rem;
     }
     .install-box code {
+      background: rgba(0, 0, 0, 0.4);
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.35rem;
+      border: 1px solid rgba(255, 255, 255, 0.05);
       color: var(--cyan);
       user-select: all;
+      text-align: left;
+      overflow-x: auto;
     }
     .btn {
       display: inline-flex;
@@ -170,7 +176,10 @@
       <p class="subtitle">Sovereign, cryptocurrency-grade folder and file encryption CLI using BIP-39 mnemonic seeds, Scrypt KDF, AES-256-GCM, and Merkle trees.</p>
       
       <div class="install-box">
+        <div style="font-size: 0.8rem; color: #a1a1aa; margin-bottom: 0.4rem; text-align: left;">Linux / macOS:</div>
         <code>curl -fsSL https://raw.githubusercontent.com/chronoarchon/blockvault/main/install.sh | bash</code>
+        <div style="font-size: 0.8rem; color: #a1a1aa; margin: 0.8rem 0 0.4rem; text-align: left;">Windows PowerShell:</div>
+        <code>irm https://raw.githubusercontent.com/chronoarchon/blockvault/main/install.ps1 | iex</code>
       </div>
 
       <div>

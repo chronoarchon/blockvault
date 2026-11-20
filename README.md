@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Language: Rust](https://img.shields.io/badge/Language-Rust-orange.svg?style=flat-square&logo=rust)](https://www.rust-lang.org)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-blue.svg?style=flat-square)](https://github.com/chronoarchon/blockvault)
-[![QA](https://img.shields.io/badge/QA_Suite-11%2F11_Passed-brightgreen.svg?style=flat-square)](https://github.com/chronoarchon/blockvault)
+[![QA](https://img.shields.io/badge/QA_Suite-12%2F12_Passed-brightgreen.svg?style=flat-square)](https://github.com/chronoarchon/blockvault)
 [![Release](https://img.shields.io/badge/Release-v2.2.0-blueviolet.svg?style=flat-square)](https://github.com/chronoarchon/blockvault/releases)
 
 A sovereign, cryptocurrency-grade folder and file encryption engine and CLI written in Rust.
@@ -40,9 +40,13 @@ curl -fsSL https://raw.githubusercontent.com/chronoarchon/blockvault/main/instal
 
 ### Windows (PowerShell)
 
-Install via Cargo directly from GitHub:
+Install directly via the one-line PowerShell script or Cargo:
 
 ```powershell
+# One-Line Native Installer (PowerShell)
+irm https://raw.githubusercontent.com/chronoarchon/blockvault/main/install.ps1 | iex
+
+# Or via Cargo:
 cargo install --git https://github.com/chronoarchon/blockvault.git
 ```
 
