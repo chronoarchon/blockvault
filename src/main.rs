@@ -89,7 +89,29 @@ enum Commands {
     },
 }
 
+#[cfg(windows)]
+fn init_windows_console() {
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn GetStdHandle(nStdHandle: u32) -> *mut std::ffi::c_void;
+        fn GetConsoleMode(hConsoleHandle: *mut std::ffi::c_void, lpMode: *mut u32) -> i32;
+        fn SetConsoleMode(hConsoleHandle: *mut std::ffi::c_void, dwMode: u32) -> i32;
+    }
+    unsafe {
+        const STD_OUTPUT_HANDLE: u32 = 0xFFFFFFF5;
+        const ENABLE_VIRTUAL_TERMINAL_PROCESSING: u32 = 0x0004;
+        let handle = GetStdHandle(STD_OUTPUT_HANDLE);
+        let mut mode: u32 = 0;
+        if GetConsoleMode(handle, &mut mode) != 0 {
+            SetConsoleMode(handle, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+        }
+    }
+}
+
 fn main() -> Result<()> {
+    #[cfg(windows)]
+    init_windows_console();
+
     let cli = Cli::parse();
 
     match cli.command {

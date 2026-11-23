@@ -57,6 +57,12 @@ pub struct UnlockResult {
 
 /// Returns the current user's home directory across Linux, macOS ($HOME) and Windows ($USERPROFILE).
 pub fn get_user_home() -> PathBuf {
+    #[cfg(windows)]
+    {
+        if let Ok(h) = std::env::var("USERPROFILE") {
+            return PathBuf::from(h);
+        }
+    }
     if let Ok(h) = std::env::var("HOME") {
         PathBuf::from(h)
     } else if let Ok(h) = std::env::var("USERPROFILE") {

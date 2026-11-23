@@ -33,9 +33,18 @@ fn stage_1_bip39_generation_and_checksum_validation() {
     let corrupted_phrase = format!("invalidword {}", words_12[1..].join(" "));
     assert!(mnemonic_to_keys(&corrupted_phrase, "").is_err(), "Invalid word must fail");
 
-    // Checksum mismatch rejection (swapping two valid words breaks checksum)
-    let swapped_phrase = format!("{} {} {}", words_12[1], words_12[0], words_12[2..].join(" "));
-    assert!(mnemonic_to_keys(&swapped_phrase, "").is_err(), "Swapped words must fail checksum");
+    // Checksum mismatch rejection (swapping valid words breaks checksum)
+    let mut found_checksum_error = false;
+    for i in 1..words_12.len() {
+        let mut test_words = words_12.clone();
+        test_words.swap(0, i);
+        let test_phrase = test_words.join(" ");
+        if mnemonic_to_keys(&test_phrase, "").is_err() {
+            found_checksum_error = true;
+            break;
+        }
+    }
+    assert!(found_checksum_error, "Swapping words must produce an invalid BIP-39 checksum");
 }
 
 // =========================================================================

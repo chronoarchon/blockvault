@@ -38,15 +38,22 @@ Automatically builds and installs the standalone binary into `~/.local/bin`:
 curl -fsSL https://raw.githubusercontent.com/chronoarchon/blockvault/main/install.sh | bash
 ```
 
-### Windows (PowerShell)
+### Windows (PowerShell & Command Prompt)
 
-Install directly via the one-line PowerShell script or Cargo:
+Install directly via the one-line native installer (zero dependencies, instant setup):
 
 ```powershell
-# One-Line Native Installer (PowerShell)
+# PowerShell (Recommended)
 irm https://raw.githubusercontent.com/chronoarchon/blockvault/main/install.ps1 | iex
+```
 
-# Or via Cargo:
+Or from Command Prompt (`cmd.exe`):
+```cmd
+curl -fsSL https://raw.githubusercontent.com/chronoarchon/blockvault/main/install.cmd -o install.cmd && install.cmd
+```
+
+Or build from source via Cargo:
+```powershell
 cargo install --git https://github.com/chronoarchon/blockvault.git
 ```
 
